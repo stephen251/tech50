@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tech 50</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    input {
+      margin-bottom: 15px;
+      padding: 10px;
+      width: 320px;
+      max-width: 100%;
+      font-size: 16px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #f4f4f4;
+      cursor: pointer;
+    }
+    tr:nth-child(even) {
+      background: #fafafa;
+    }
+    #status {
+      margin: 10px 0 20px;
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tech 50</h1>
+  <input type="text" id="searchInput" placeholder="Search table...">
+  <div id="status">Loading data...</div>
+  <table id="csvTable"></table>
+
+  <script>
+    const csvFile = "./tech50.csv?v=2";
+    let tableData = [];
+    let filteredData = [];
+    let headers = [];
+    let sortDirection = {};
+
+    function renderTable(data) {
+      const table = document.getElementById("csvTable");
+      table.innerHTML = "";
+
+      if (!data || data.length === 0) {
+        table.innerHTML = "<tr><td>No data found</td></tr>";
+        return;
+      }
+
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+
+      headers.forEach((header, index) => {
+        const th = document.createElement("th");
+        th.textContent = header;
+        th.addEventListener("click", () => sortTable(index));
+        headerRow.appendChild(th);
+      });
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        headers.forEach(header => {
+          const td = document.createElement("td");
+          td.textContent = row[header] ?? "";
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+    }
+
+    function sortTable(columnIndex) {
+      const header = headers[columnIndex];
+      sortDirection[header] = !sortDirection[header];
+
+      filteredData.sort((a, b) => {
+        const valA = String(a[header] ?? "");
+        const valB = String(b[header] ?? "");
+        return sortDirection[header]
+          ? valA.localeCompare(valB, undefined, { numeric: true })
+          : valB.localeCompare(valA, undefined, { numeric: true });
+      });
+
+      renderTable(filteredData);
+    }
+
+    function filterTable(searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredData = tableData.filter(row =>
+        headers.some(header =>
+          String(row[header] ?? "").toLowerCase().includes(term)
+        )
+      );
+      renderTable(filteredData);
+      document.getElementById("status").textContent = `${filteredData.length} rows shown`;
+    }
+
+    Papa.parse(csvFile, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: function(results) {
+        tableData = results.data || [];
+        if (tableData.length === 0) {
+          document.getElementById("status").textContent = "No rows found in CSV";
+          renderTable([]);
+          return;
+        }
+
+        headers = Object.keys(tableData[0]);
+        filteredData = [...tableData];
+        renderTable(filteredData);
+        document.getElementById("status").textContent = `${filteredData.length} rows shown`;
+      },
+      error: function(err) {
+        document.getElementById("status").textContent = "Error loading CSV: " + err.message;
+      }
+    });
+
+    document.getElementById("searchInput").addEventListener("input", function() {
+      filterTable(this.value);
+    });
+  </script>
+</body>
+</html>
